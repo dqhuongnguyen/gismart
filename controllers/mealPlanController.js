@@ -26,9 +26,10 @@ exports.index = async (req, res) => {
     const today    = new Date();
     const calendar = [];
     for (let i = 0; i < 7; i++) {
-      const d   = new Date(today);
+      const d   = new Date(today); // e.g., Wed 16 Apr
       d.setDate(today.getDate() + i);
-      const dayName = DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1]; // Mon=0..Sun=6
+      const dayName = DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1]; // Mon=0..Sun=6, e.g., "Wednesday"
+      // label: "2026-04-16"
       calendar.push({ date: d, dayName, label: d.toLocaleDateString("en-CA") });
     }
 

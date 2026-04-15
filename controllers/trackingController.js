@@ -2,10 +2,12 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Food = require("../models/Food");
 
+/** Today's date as YYYY-MM-DD (for URLs and keys). */
 function todayStr() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
+/** Turn a YYYY-MM-DD string into a Date at noon local (avoids UTC off-by-one). */
 function parseLocalDate(yyyyMmDd) {
   const raw = yyyyMmDd || todayStr();
   const [y, m, d] = String(raw).split("-").map(Number);
@@ -13,6 +15,7 @@ function parseLocalDate(yyyyMmDd) {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
+/** True if two dates are the same calendar day (year/month/day), ignoring time. */
 function sameCalendarDay(a, b) {
   const da = new Date(a);
   const db = new Date(b);
@@ -23,13 +26,17 @@ function sameCalendarDay(a, b) {
   );
 }
 
+/** Midnight-normalised date — compare or store “just the day”. */
 function dateOnly(d) {
   const dt = new Date(d);
   dt.setHours(0,0,0,0);
   return dt;
 }
 
-/** Estimated kcal from meal_log entries (foods must have calories_per_100g). */
+/**
+ * Add up calories for logged foods: (portion_g / 100) * calories_per_100g per entry.
+ * Skips entries missing calorie data.
+ */
 function sumKcalFromEntries(entries) {
   let total = 0;
   for (const e of entries || []) {
@@ -40,7 +47,10 @@ function sumKcalFromEntries(entries) {
   return Math.round(total);
 }
 
-/** kcal-weighted average GI (lower is better for glycemic load). */
+/**
+ * One GI number for the day: average weighted by each food’s estimated calories
+ * (bigger meals pull the average more). Returns null if no usable data.
+ */
 function weightedAvgGiFromEntries(entries) {
   let kSum = 0;
   let giKSum = 0;
@@ -59,7 +69,7 @@ function weightedAvgGiFromEntries(entries) {
   return Math.round(giKSum / kSum);
 }
 
-/** 0–100 “quality” toward low-GI eating (100 = avg ≤ 55). */
+/** Map average GI to a 0–100 bar (100 = low GI; high GI trends toward 0). */
 function giLoadProgressPct(avgGi) {
   if (avgGi == null) return null;
   if (avgGi <= 55) return 100;
@@ -69,6 +79,7 @@ function giLoadProgressPct(avgGi) {
 
 const WATER_GOAL_L = 2.5;
 
+/** Compare total kcal to profile daily goal: under / within ~10% / over, or empty/no goal. */
 function kcalVsGoal(totalKcal, dailyGoal) {
   if (!dailyGoal || dailyGoal <= 0) {
     return { band: "no_goal", label: "Set a calorie target in your profile to compare." };
@@ -82,7 +93,10 @@ function kcalVsGoal(totalKcal, dailyGoal) {
   return { band: "over", label: `About ${Math.round(ratio * 100)}% of goal — over target.` };
 }
 
-/** Calendar dot: full / partial / low / none */
+/**
+ * Pick a dot style for the 30-day strip: full / partial / low / none
+ * from met_targets or legacy meals_followed counts.
+ */
 function calendarDayStatus(log) {
   if (!log) return "none";
   if (log.met_targets === "yes") return "full";
@@ -96,8 +110,8 @@ function calendarDayStatus(log) {
 }
 
 /**
- * Derive stored met_targets from today's metrics (saved with check-in).
- * Uses calorie band vs goal, GI band, and hydration vs goal.
+ * Rules engine: from calorie band, GI band, and water vs goal → "", "yes", "partial", or "no"
+ * (saved on tracking_log when user checks in).
  */
 function deriveMetTargetsFromMetrics({ kcalBand, giBand, waterL, waterGoalL, todayTotalKcal }) {
   const wRatio = waterGoalL > 0 ? waterL / waterGoalL : 1;
@@ -111,7 +125,10 @@ function deriveMetTargetsFromMetrics({ kcalBand, giBand, waterL, waterGoalL, tod
   return "partial";
 }
 
-/** User-facing conclusion + tips (same inputs as deriveMetTargetsFromMetrics). */
+/**
+ * Build headline, tone, bullet summary lines, and tips for the Tracking page
+ * (same inputs as deriveMetTargetsFromMetrics, plus friendly copy).
+ */
 function buildDayVerdict({
   dailyGoal,
   todayTotalKcal,
@@ -203,7 +220,10 @@ function buildDayVerdict({
   return { headline, tone, summaryLines, recommendations, derivedMet };
 }
 
-// GET /tracking
+/**
+ * GET /tracking — Show tracking page: meal_log for selected date, today’s calories/GI/water,
+ * 30-day calendar with dots, verdict text; optional ?date= and ?edit= for editing a row.
+ */
 exports.index = async (req, res) => {
   try {
     const user = await User.findById(res.locals.currentUser._id)
@@ -331,7 +351,11 @@ exports.index = async (req, res) => {
   }
 };
 
-// POST /tracking/log  — save water + notes; met_targets derived from log + goals
+/**
+ * POST /tracking/log — Save today’s check-in (water, notes). Derives met_targets from
+ * today’s logged foods + calorie goal + GI band + water vs goal; upserts tracking_log for today.
+ * reads water_intake_L and notes from the check-in form
+ */
 exports.log = async (req, res) => {
   try {
     const { water_intake_L, notes } = req.body;
@@ -392,7 +416,9 @@ exports.log = async (req, res) => {
   }
 };
 
-// POST /tracking/meal — log a food from the database (independent of meal plan)
+/**
+ * POST /tracking/meal — What you ate - Append one meal_log row (food, meal type, portion, date); redirect back to tracking.
+ */
 exports.addManualMeal = async (req, res) => {
   try {
     const { food_id, meal_type, portion_g, log_date } = req.body;
@@ -426,7 +452,9 @@ exports.addManualMeal = async (req, res) => {
   }
 };
 
-// POST /tracking/meal/:entryId/update — edit a logged meal
+/**
+ * POST /tracking/meal/:entryId/update — Change an existing meal_log entry (food, portion, date).
+ */
 exports.updateManualMeal = async (req, res) => {
   const { log_date } = req.body;
   const back = log_date ? `?date=${encodeURIComponent(String(log_date).slice(0, 10))}` : "";
@@ -469,7 +497,9 @@ exports.updateManualMeal = async (req, res) => {
   }
 };
 
-// POST /tracking/meal/:entryId/remove
+/**
+ * POST /tracking/meal/:entryId/remove — Delete one meal_log row by id ($pull).
+ */
 exports.removeManualMeal = async (req, res) => {
   try {
     const { entryId } = req.params;
@@ -495,7 +525,9 @@ exports.removeManualMeal = async (req, res) => {
   }
 };
 
-// GET /tracking/history — AJAX endpoint returning last 30 days as JSON
+/**
+ * GET /tracking/history — JSON: tracking_log entries from the last ~30 days (for charts/AJAX).
+ */
 exports.history = async (req, res) => {
   try {
     const user  = await User.findById(res.locals.currentUser._id).select("tracking_log").lean();

@@ -42,33 +42,48 @@ function reasonForPadCategory(category) {
 /**
  * Mutates aiPlan: each Breakfast/Lunch/Dinner/Snacks must list at least MIN_FOODS_PER_MEAL foods.
  * Pads from the same filtered pool when the model returns fewer items.
+ *
+ * aiPlan — Groq JSON: top keys include Monday..Sunday, summary; each day has Breakfast/Lunch/Dinner/Snacks → { foods, tip }.
+ * foodPool — [Food, Food, ...] from Mongo (lean): allowed gi_tier for this user’s BMI; used for padding only.
  */
 function ensureMealsHaveMinFoods(aiPlan, foodPool) {
   if (!aiPlan || !foodPool?.length) return;
 
+  // Map< id string, Food doc > — "507f1f77bcf86cd799439011" → full row from foodPool (for category + dedupe).
   const poolById = new Map(foodPool.map((f) => [f._id.toString(), f]));
 
   for (const day of DAYS) {
+    // dayBlock — that day’s object, e.g. aiPlan["Monday"] → { Breakfast: {...}, Lunch: {...}, Dinner: {...}, Snacks: {...} }
     const dayBlock = aiPlan[day];
     if (!dayBlock || typeof dayBlock !== "object") continue;
 
+    // slot — one of: "Breakfast" | "Lunch" | "Dinner" | "Snacks"
     for (const slot of MEAL_SLOTS) {
+      // meal — one slot’s value, e.g. { foods: [ {...}, ... ], tip: "Start the day steady." }
       const meal = dayBlock[slot];
       if (!meal || !Array.isArray(meal.foods)) continue;
 
+      // foods — same array as meal.foods (mutated in place); thin items from AI: { id, name, reason }
+      // e.g. [ { id: "507f…", name: "Oats", reason: "…" }, { id: "…", name: "Eggs", reason: "…" } ]
       const foods = meal.foods;
+
+      // seen — Set<string> of _ids already on this tray, e.g. Set("507f…", "508a…") so we never duplicate a food
       const seen = new Set();
+      // f — one thin row from the AI; only id/name/reason guaranteed (category comes from poolById lookup)
       for (const f of foods) {
         if (f && f.id) seen.add(String(f.id));
       }
 
+      // categoriesPresent — Set<string> of categories already represented, e.g. Set("Grains", "Protein") for pickPadFood variety
       const categoriesPresent = new Set();
       for (const f of foods) {
+        // full — full Food doc from DB for f.id, or null if id missing from pool; e.g. { _id, name, category: "Grains", gi_value, ... }
         const full = f?.id ? poolById.get(String(f.id)) : null;
         if (full?.category) categoriesPresent.add(full.category);
       }
 
       while (foods.length < MIN_FOODS_PER_MEAL) {
+        // extra — one Food doc from foodPool to append next, or null if nothing left
         const extra = pickPadFood(foodPool, seen, categoriesPresent, slot);
         if (!extra) break;
         foods.push({
