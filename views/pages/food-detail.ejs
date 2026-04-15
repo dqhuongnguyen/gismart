@@ -70,7 +70,7 @@
   <% } %>
 
   <div class="detail-actions">
-    <% if (currentUser?.role === 'admin') { %>
+    <% if (isAdmin) { %>
       <a href="/foods/<%= food._id %>/edit" class="btn btn-primary">✏️ Edit</a>
       <form method="POST" action="/foods/<%= food._id %>?_method=DELETE"
             style="display:inline" onsubmit="return confirm('Delete <%= food.name %>?')">

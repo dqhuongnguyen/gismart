@@ -2,12 +2,18 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { jwt: jwtSecret } = require("../config/secrets");
 
+/** True if this user document has admin privileges (navbar + redirects). */
+function userIsAdmin(user) {
+  return !!(user && String(user.role || "").toLowerCase() === "admin");
+}
+
 /**
  * Login state: JWT stored in express-session (httpOnly cookie). No secrets in localStorage.
  * setLocals runs on every request: verifies JWT, loads User → res.locals.currentUser.
  */
 exports.setLocals = async (req, res, next) => {
   res.locals.currentUser = null;
+  res.locals.isAdmin = false;
   res.locals.success = req.flash ? req.flash("success") : [];
   res.locals.error   = req.flash ? req.flash("error")   : [];
 
@@ -16,6 +22,7 @@ exports.setLocals = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, jwtSecret);
       res.locals.currentUser = await User.findById(decoded.id).select("-password").lean();
+      res.locals.isAdmin = userIsAdmin(res.locals.currentUser);
     } catch {
       req.session.token = null; // expired — clear it
     }
@@ -23,10 +30,12 @@ exports.setLocals = async (req, res, next) => {
   next();
 };
 
+exports.userIsAdmin = userIsAdmin;
+
 // Block logged-in users from /auth pages
 exports.guestOnly = (req, res, next) => {
   if (req.session?.token) {
-    if (res.locals.currentUser?.role === "admin") return res.redirect("/admin");
+    if (res.locals.isAdmin) return res.redirect("/admin");
     return res.redirect("/dashboard");
   }
   next();
@@ -62,7 +71,7 @@ function requireAdmin(req, res, next) {
     req.flash && req.flash("error", "Please log in.");
     return res.redirect("/auth/login");
   }
-  if (res.locals.currentUser?.role !== "admin") {
+  if (!userIsAdmin(res.locals.currentUser)) {
     if (isApi(req)) {
       return res.status(403).json({ success: false, message: "Forbidden." });
     }
@@ -81,7 +90,7 @@ exports.requireAdmin = requireAdmin;
  */
 function redirectAdminFromConsumer(req, res, next) {
   if (!req.session?.token || !res.locals.currentUser) return next();
-  if (res.locals.currentUser.role !== "admin") return next();
+  if (!res.locals.isAdmin) return next();
 
   const path = req.path || "";
   const method = req.method || "GET";

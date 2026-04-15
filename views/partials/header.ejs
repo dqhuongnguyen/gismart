@@ -9,10 +9,10 @@
 </head>
 <body>
 <nav class="navbar" aria-label="Main navigation">
-  <a href="<%= currentUser && currentUser.role === 'admin' ? '/admin' : '/' %>" class="nav-brand">GI<span>Smart</span></a>
+  <a href="<%= isAdmin ? '/admin' : '/' %>" class="nav-brand">GI<span>Smart</span></a>
 
   <ul class="nav-links">
-    <% if (currentUser && currentUser.role === 'admin') { %>
+    <% if (isAdmin) { %>
     <li><a href="/admin" class="nav-link-admin">Admin panel</a></li>
     <li class="nav-user-block">
       <details class="nav-user-dropdown">

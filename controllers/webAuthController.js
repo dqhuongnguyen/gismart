@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const jwt  = require("jsonwebtoken");
 const { jwt: jwtSecret } = require("../config/secrets");
+const { userIsAdmin } = require("../middleware/webAuth");
 
 const signToken = (id) =>
   jwt.sign({ id: String(id) }, jwtSecret, {
@@ -78,7 +79,7 @@ exports.login = async (req, res) => {
         return res.redirect("/auth/login");
       }
       req.flash("success", `Welcome back, ${user.name}!`);
-      res.redirect(user.role === "admin" ? "/admin" : "/dashboard");
+      res.redirect(userIsAdmin(user) ? "/admin" : "/dashboard");
     });
   } catch (err) {
     req.flash("error", err.message);
