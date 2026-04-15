@@ -26,6 +26,7 @@ function calcBMI(weight_kg, height_cm, age, gender, activity, goal, weightLoss) 
   let daily_calories;
   let weight_loss_deficit_capped = false;
 
+  // Mifflin–St Jeor BMR formula to calculate daily calories
   if (age && gender) {
     const bmr =
       gender === "female"
