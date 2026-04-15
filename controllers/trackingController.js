@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const Food = require("../models/Food");
+const { userIsAdmin } = require("../middleware/webAuth");
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -206,6 +207,8 @@ function buildDayVerdict({
 // GET /tracking
 exports.index = async (req, res) => {
   try {
+    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
+
     const user = await User.findById(res.locals.currentUser._id)
       .populate("meal_log.food", "name category gi_value gi_tier calories_per_100g")
       .lean();
@@ -334,6 +337,8 @@ exports.index = async (req, res) => {
 // POST /tracking/log  — save water + notes; met_targets derived from log + goals
 exports.log = async (req, res) => {
   try {
+    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
+
     const { water_intake_L, notes } = req.body;
     const user = await User.findById(res.locals.currentUser._id).populate(
       "meal_log.food",
@@ -395,6 +400,8 @@ exports.log = async (req, res) => {
 // POST /tracking/meal — log a food from the database (independent of meal plan)
 exports.addManualMeal = async (req, res) => {
   try {
+    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
+
     const { food_id, meal_type, portion_g, log_date } = req.body;
     if (!mongoose.isValidObjectId(food_id)) {
       req.flash("error", "Please choose a food.");
@@ -428,6 +435,8 @@ exports.addManualMeal = async (req, res) => {
 
 // POST /tracking/meal/:entryId/update — edit a logged meal
 exports.updateManualMeal = async (req, res) => {
+  if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
+
   const { log_date } = req.body;
   const back = log_date ? `?date=${encodeURIComponent(String(log_date).slice(0, 10))}` : "";
   try {
@@ -472,6 +481,8 @@ exports.updateManualMeal = async (req, res) => {
 // POST /tracking/meal/:entryId/remove
 exports.removeManualMeal = async (req, res) => {
   try {
+    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
+
     const { entryId } = req.params;
     const back = req.body.back_date;
     if (!mongoose.isValidObjectId(entryId)) {
@@ -498,6 +509,10 @@ exports.removeManualMeal = async (req, res) => {
 // GET /tracking/history — AJAX endpoint returning last 30 days as JSON
 exports.history = async (req, res) => {
   try {
+    if (userIsAdmin(res.locals.currentUser)) {
+      return res.status(403).json({ success: false, error: "Forbidden." });
+    }
+
     const user  = await User.findById(res.locals.currentUser._id).select("tracking_log").lean();
     const start = new Date(); start.setDate(start.getDate() - 29); start.setHours(0,0,0,0);
     const logs  = (user.tracking_log || []).filter(l => new Date(l.date) >= start);

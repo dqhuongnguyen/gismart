@@ -1,8 +1,11 @@
 const Food = require("../models/Food");
+const { userIsAdmin } = require("../middleware/webAuth");
 
 // GET /foods — list all with search/filter + pagination
 exports.index = async (req, res) => {
   try {
+    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
+
     const { search, tier, category, sort, page = 1 } = req.query;
     const limit = 18;
     const skip  = (Math.max(1, +page) - 1) * limit;

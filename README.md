@@ -58,6 +58,10 @@ Render sets `PORT` automatically — do **not** override it unless you know you 
 
 Optional: `ENFORCE_HTTPS=true` (redirect HTTP→HTTPS behind Render), `CLIENT_URL=https://your-app.onrender.com` if you need strict CORS for the API from another origin.
 
+**Admin access:** In MongoDB, set your user’s `role` to `"admin"`. If you cannot edit the DB, set **`ADMIN_EMAILS`** (comma-separated) in Render’s environment to your login email — same admin nav and `/admin` access (see `.env.example`).
+
+**If production still shows the old navbar** (Foods + Dashboard + Meal plan + Tracking + Admin): the live site is **not** running your latest commit. On Render, open **Events** / **Deploy** and confirm the **commit SHA** matches GitHub. Then **Manual Deploy → Clear build cache & deploy**. After load, **View Page Source** and check `<meta name="gs-deploy" content="...">` — it should be a **git SHA**, not `local`.
+
 ### 5. Seed the database (once)
 
 After the first successful deploy, load food data into the **same** Atlas DB:

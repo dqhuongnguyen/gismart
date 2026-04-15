@@ -1,7 +1,12 @@
 const Food = require("../models/Food");
+const { userIsAdmin } = require("../middleware/webAuth");
 
 exports.home = async (req, res) => {
   try {
+    if (res.locals.currentUser && userIsAdmin(res.locals.currentUser)) {
+      return res.redirect(302, "/admin");
+    }
+
     const featured = await Food.find({ is_featured: true }).limit(6);
     const best = await Food.find({ gi_tier: "Low" }).sort({ gi_value: 1 }).limit(3);
     const stats = {
