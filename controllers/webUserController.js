@@ -1,5 +1,4 @@
 const User = require("../models/User");
-const { userIsAdmin } = require("../middleware/webAuth");
 const { ensureWeeklyMealPlan, dashboardMealsForDate } = require("../services/mealPlanService");
 
 
@@ -59,8 +58,6 @@ function calcBMI(weight_kg, height_cm, age, gender, activity, goal, weightLoss) 
 // GET /dashboard
 exports.dashboard = async (req, res) => {
   try {
-    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
-
     const user = await User.findById(res.locals.currentUser._id).lean();
 
     if (!user) {
@@ -97,8 +94,6 @@ exports.dashboard = async (req, res) => {
 
 // GET /user/profile
 exports.profileForm = async (req, res) => {
-  if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
-
   const user = await User.findById(res.locals.currentUser._id).lean();
   res.render("pages/user/profile", { title: "Health Profile", user });
 };
@@ -106,8 +101,6 @@ exports.profileForm = async (req, res) => {
 // POST /user/profile
 exports.updateProfile = async (req, res) => {
   try {
-    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
-
     const { age, gender, weight_kg, height_cm, activity, goal, name, target_weight_kg, weight_loss_weeks } = req.body;
     const user = await User.findById(res.locals.currentUser._id);
     if (name) user.name = name;

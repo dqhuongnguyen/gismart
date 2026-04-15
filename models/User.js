@@ -56,8 +56,6 @@ const UserSchema = new mongoose.Schema(
       minlength: [6,"Password must be at least 6 characters"], select: false,
     },
     role:      { type: String, enum: ["user","admin"], default: "user" },
-    /** Optional mirror flag (e.g. set in Atlas); admin access also uses `role: "admin"`. */
-    isAdmin:   { type: Boolean, default: false },
     goal:      { type: String, enum: ["Weight Loss","Blood Sugar Control","General Health","Sports Performance"], default: "General Health" },
     profile:   ProfileSchema,
     meal_log:  [MealLogSchema],

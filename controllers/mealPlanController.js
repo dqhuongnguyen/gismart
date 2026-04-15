@@ -1,12 +1,9 @@
 const User = require("../models/User");
-const { userIsAdmin } = require("../middleware/webAuth");
 const { RULES, DAYS, ensureWeeklyMealPlan } = require("../services/mealPlanService");
 
 // GET /meal-plan
 exports.index = async (req, res) => {
   try {
-    if (userIsAdmin(res.locals.currentUser)) return res.redirect(302, "/admin");
-
     const user       = await User.findById(res.locals.currentUser._id).lean();
     const hasProfile = !!(user.profile?.bmi);
     let weeklyPlan   = null;

@@ -9,7 +9,6 @@ const { jwt: jwtSecret } = require("../config/secrets");
  */
 function userIsAdmin(user) {
   if (!user) return false;
-  if (user.isAdmin === true) return true;
   if (String(user.role || "").toLowerCase() === "admin") return true;
   const raw = process.env.ADMIN_EMAILS || "";
   const email = (user.email || "").trim().toLowerCase();
