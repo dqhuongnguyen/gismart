@@ -77,7 +77,7 @@
         <button class="btn btn-danger">🗑 Delete</button>
       </form>
     <% } %>
-    <a href="/foods" class="btn btn-secondary">← Back to Foods</a>
+    <a href="<%= isAdmin ? '/admin/foods' : '/foods' %>" class="btn btn-secondary"><%= isAdmin ? '← Back to manage foods' : '← Back to Foods' %></a>
     <% if (currentUser && currentUser.profile?.bmi) { %>
       <a href="/meal-plan" class="btn btn-secondary">🥗 My Meal Plan</a>
     <% } %>

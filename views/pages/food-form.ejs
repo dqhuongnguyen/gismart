@@ -33,7 +33,7 @@
     <label class="checkbox-label"><input type="checkbox" name="is_featured" value="true" <%= food && food.is_featured ? 'checked' : '' %>> Feature on Homepage</label>
     <div class="form-actions">
       <button type="submit" class="btn btn-primary"><%= food ? 'Update Food' : 'Add Food' %></button>
-      <a href="/foods" class="btn btn-secondary">Cancel</a>
+      <a href="<%= typeof isAdmin !== 'undefined' && isAdmin ? '/admin/foods' : '/foods' %>" class="btn btn-secondary">Cancel</a>
     </div>
   </form>
 </div>

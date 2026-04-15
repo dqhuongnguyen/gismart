@@ -1,5 +1,20 @@
 const Food = require("../models/Food");
 
+/** URL-encoded forms send "" for empty numbers and "a, b" for tags; Mongoose expects numbers/arrays. */
+function foodFormToDoc(body) {
+  const out = { ...body };
+  if (typeof out.tags === "string") {
+    out.tags = out.tags.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  }
+  out.is_featured = out.is_featured === "true" || out.is_featured === true;
+  const numKeys = ["gi_value", "calories_per_100g", "carbs_g", "fibre_g", "protein_g", "fat_g", "serving_size_g"];
+  for (const k of numKeys) {
+    if (out[k] === "" || out[k] === undefined) delete out[k];
+    else if (typeof out[k] === "string") out[k] = parseFloat(out[k]);
+  }
+  return out;
+}
+
 // GET /foods — list all with search/filter + pagination
 exports.index = async (req, res) => {
   try {
@@ -67,7 +82,7 @@ exports.newForm = (req, res) => {
 // POST /foods
 exports.create = async (req, res) => {
   try {
-    const food = await Food.create(req.body);
+    const food = await Food.create(foodFormToDoc(req.body));
     req.flash && req.flash("success", `${food.name} added successfully!`);
     res.redirect("/foods");
   } catch (err) {
@@ -88,7 +103,7 @@ exports.editForm = async (req, res) => {
 // PUT /foods/:id
 exports.update = async (req, res) => {
   try {
-    const food = await Food.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const food = await Food.findByIdAndUpdate(req.params.id, foodFormToDoc(req.body), { new: true, runValidators: true });
     req.flash && req.flash("success", `${food.name} updated!`);
     res.redirect(`/foods/${food._id}`);
   } catch (err) {
